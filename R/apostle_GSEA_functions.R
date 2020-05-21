@@ -146,14 +146,14 @@ enrichment_figures <- function(pathway, stats, sig_gs_names, title,
 }
 
 
-fgsea_plot <- function(geneset_list, fgsea_RNK, msigdb_sets, deseq_res,figure_header, heatmap_header) {
+final_figures <- function(geneset_list, fgsea_RNK, msigdb_sets, deseq_res,figure_header, heatmap_header) {
   res <- fgsea(geneset_list, fgsea_RNK, nperm = 10000)
   print(res)
   sig_genesets <- which(res$padj < 0.05)
   if (length(sig_genesets) > 0) {
     sig_gs_names <- msigdb_sets@gs_names[sig_genesets]
     geneset_sig <- geneset_list[sig_genesets]
-    figure1 <- plotEnrichment_sa2(geneset_sig, fgsea_RNK, sig_gs_names, title = figure_header)
+    figure1 <- enrichment_figures(geneset_sig, fgsea_RNK, sig_gs_names, title = figure_header)
 
 
     leading_edge <- deseq_res$hgnc_symbol[which(deseq_res$entrez %in% unique(unlist(res[sig_genesets]$leadingEdge)))]
