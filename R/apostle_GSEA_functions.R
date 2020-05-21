@@ -165,16 +165,17 @@ enrichment_analysis <- function(geneset_list, fgsea_RNK, msigdb_sets, figure_hea
 LE_heatmap <- function(geneset_list, fgsea_RNK, deseq_res, heatmap_header) {
   res <- fgsea(geneset_list, fgsea_RNK, nperm = 10000)
   sig_genesets <- which(res$padj < 0.05)
-  leading_edge <- deseq_res$hgnc_symbol[which(deseq_res$entrez %in% unique(unlist(res[sig_genesets]$leadingEdge)))] #change hgnc_symbol based on organism
+  leading_edge <- deseq_res$hgnc_symbol[which(deseq_res$entrez %in% unique(unlist(res[sig_genesets]$leadingEdge)))]
   le_genes <- which(rownames(rld_df) %in% leading_edge)
-  hm <- as.matrix.data.frame(rld_df[le_genes,])
+  df <- rld_df[le_genes,]
+  hm <- as.matrix(df)
+  print(class(hm))
   plot.new()
   figure2 <- heatmap.2(x = hm, scale="row",
                        dendrogram= "column",
                        trace = "none",
                        col = colorRampPalette(c("darkblue", "lightblue","white", "orange", "darkred"))(n = 99),
                        labCol = colnames(rld_df),
-                       #ColSideColors = col_colors,
                        ylab = "Gene",
                        xlab = "Biological Sample",
                        main = heatmap_header)
