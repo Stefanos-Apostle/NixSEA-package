@@ -165,13 +165,10 @@ enrichment_analysis <- function(geneset_list, fgsea_RNK, msigdb_sets, figure_hea
 LE_heatmap <- function(geneset_list, fgsea_RNK, deseq_res, heatmap_header) {
   res <- fgsea(geneset_list, fgsea_RNK, nperm = 10000)
   sig_genesets <- which(res$padj < 0.05)
-  print(sig_genesets)
   leading_edge <- deseq_res$hgnc_symbol[which(deseq_res$entrez %in% unique(unlist(res[sig_genesets, 1:length(res)]$leadingEdge)))]
-  print(leading_edge)
   le_genes <- which(rownames(rld_df) %in% leading_edge)
   df <- rld_df[le_genes,]
   hm <- as.matrix(df)
-  print(hm)
   plot.new()
   figure2 <- heatmap.2(x = hm, scale="row",
                        dendrogram= "column",
