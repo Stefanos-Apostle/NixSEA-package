@@ -63,11 +63,11 @@ RNK_make <- function(deseq2_res) {
 }
 
 
-keyword_geneset <- function(database, keyword) {
-  msigdb_sets <- setClass("msigdb_sets", slots = c(gs = "tbl_df",
-                                                   gs_names = "character",
-                                                   gs_ids = "character"))
+msigdb_sets <- setClass("msigdb_sets", slots = c(gs = "tbl_df",
+                                                 gs_names = "character",
+                                                 gs_ids = "character"))
 
+keyword_geneset <- function(database, keyword) {
   gs <- database[grep(keyword, database$gs_name),]
   gs_names <- unique(gs$gs_name)
   gs_ids <- unique(gs$gs_id)
