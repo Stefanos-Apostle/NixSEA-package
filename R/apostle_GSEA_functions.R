@@ -168,8 +168,7 @@ LE_heatmap <- function(geneset_list, fgsea_RNK, deseq_res, heatmap_header) {
   leading_edge <- deseq_res$hgnc_symbol[which(deseq_res$entrez %in% unique(unlist(res[sig_genesets]$leadingEdge)))]
   le_genes <- which(rownames(rld_df) %in% leading_edge)
   df <- rld_df[le_genes,]
-  hm <- as.matrix(df)
-  print(class(hm))
+  hm <- data.matrix(df)
   plot.new()
   figure2 <- heatmap.2(x = hm, scale="row",
                        dendrogram= "column",
