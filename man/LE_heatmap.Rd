@@ -1,14 +1,14 @@
-\name{final_figures}
-\alias{final_figures}
+\name{LE_heatmap}
+\alias{LE_heatmap}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{Produces final significant figures and leading edge heatmap
+\title{Plots a heatmap of the Leading Edge genes from the significant genesets
 %%  ~~function to do ... ~~
 }
 \description{
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-final_figures(x)
+LE_heatmap(x)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
