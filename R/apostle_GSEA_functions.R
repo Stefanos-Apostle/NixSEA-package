@@ -50,8 +50,8 @@ RNK_make <- function(deseq2_res) {
   RNK_file <- data.frame(entrez_id = deseq2_res$entrez, rank = rank_stat)
   length(RNK_file$entrez_id)
 
-  if ("hgnc_symbol" %in% colnames(deseq2_res)) {symbol <- deseq_res$hgnc_symbol}
-  if ("mgi_symbol" %in% colnames(deseq2_res)) {symbol <- deseq_res$mgi_symbol}
+  if ("hgnc_symbol" %in% colnames(deseq2_res)) {symbol <- deseq2_res$hgnc_symbol}
+  if ("mgi_symbol" %in% colnames(deseq2_res)) {symbol <- deseq2_res$mgi_symbol}
 
   pseudo <- grep("Gm", symbol)
   entrez_na <- which(is.na(RNK_file$entrez_id) == TRUE)
@@ -170,8 +170,8 @@ LE_heatmap <- function(geneset_list, fgsea_RNK, deseq_res, heatmap_header) {
   res <- fgsea(geneset_list, fgsea_RNK, nperm = 10000)
   sig_genesets <- which(res$padj < 0.05)
 
-  if ("hgnc_symbol" %in% colnames(deseq2_res)) {symbol <- deseq_res$hgnc_symbol}
-  if ("mgi_symbol" %in% colnames(deseq2_res)) {symbol <- deseq_res$mgi_symbol}
+  if ("hgnc_symbol" %in% colnames(deseq_res)) {symbol <- deseq_res$hgnc_symbol}
+  if ("mgi_symbol" %in% colnames(deseq_res)) {symbol <- deseq_res$mgi_symbol}
 
   leading_edge <- symbol[which(deseq_res$entrez %in% unique(unlist(res[sig_genesets, 1:length(res)]$leadingEdge)))]
   le_genes <- which(rownames(rld_df) %in% leading_edge)
