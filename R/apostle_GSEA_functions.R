@@ -166,28 +166,51 @@ enrichment_analysis <- function(geneset_list, fgsea_RNK, msigdb_sets, figure_hea
 
 
 
-LE_heatmap <- function(geneset_list, fgsea_RNK, deseq_res, heatmap_header) {
+LE_heatmap <- function (geneset_list, fgsea_RNK, deseq_res, ColumnColors = FALSE, heatmap_header = NULL,
+                        col_margin = 10, row_margin = 10)
+{
   res <- fgsea(geneset_list, fgsea_RNK, nperm = 10000)
   sig_genesets <- which(res$padj < 0.05)
 
   if ("hgnc_symbol" %in% colnames(deseq_res)) {symbol <- deseq_res$hgnc_symbol}
   if ("mgi_symbol" %in% colnames(deseq_res)) {symbol <- deseq_res$mgi_symbol}
 
-  leading_edge <- symbol[which(deseq_res$entrez %in% unique(unlist(res[sig_genesets, 1:length(res)]$leadingEdge)))]
+  leading_edge <- symbol[which(deseq_res$entrez %in%
+                                 unique(unlist(res[sig_genesets, 1:length(res)]$leadingEdge)))]
   le_genes <- which(rownames(rld_df) %in% leading_edge)
-  df <- rld_df[le_genes,]
+  df <- rld_df[le_genes, ]
   hm <- as.matrix(df)
   plot.new()
-  figure2 <- heatmap.2(x = hm, scale="row",
-                       dendrogram= "column",
-                       trace = "none",
-                       col = colorRampPalette(c("darkblue", "lightblue","white", "orange", "darkred"))(n = 99),
-                       labCol = colnames(rld_df),
-                       ylab = "Gene",
-                       xlab = "Biological Sample",
-                       main = heatmap_header)
+
+  if (ColumnColors == TRUE) {
+    i = 1
+    colcolors <- as.character(dds$treatment)
+    while (i <= length(levels(dds$treatment))) {
+      colcolors <- replace(colcolors, grep(levels(dds$treatment)[i],colcolors), viridis(length(levels(dds$treatment)))[i])
+      i = i + 1
+    }
+
+    print(colcolors)
+
+    figure2 <- heatmap.2(x = hm, scale = "row", dendrogram = "column",
+                         trace = "none", col = colorRampPalette(c("darkblue",
+                                                                  "lightblue", "white", "orange", "darkred"))(n = 99),
+                         labCol = colnames(rld_df), ylab = "Gene", xlab = "Biological Sample",
+                         main = heatmap_header, ColSideColors = colcolors,
+                         margins = c(col_margin, row_margin))
+    legend(x = "left", legend = as.character(levels(dds$treatment)), fill = viridis(length(levels(dds$treatment))))
+  }
+  else {
+    figure2 <- heatmap.2(x = hm, scale = "row", dendrogram = "column",
+                         trace = "none", col = colorRampPalette(c("darkblue",
+                                                                  "lightblue", "white", "orange", "darkred"))(n = 99),
+                         labCol = colnames(rld_df), ylab = "Gene", xlab = "Biological Sample",
+                         main = heatmap_header)
+  }
+
   figure2
 }
+
 
 
 
