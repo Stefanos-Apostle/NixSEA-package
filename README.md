@@ -4,9 +4,8 @@ R package for easy Gene Set Enrichment Analysis (GSEA) calculation and visualiza
 
 Install with the following:
 
->library(devtools)
-
 >install_github("Stefanos-Apostle/NixSEA-package")
+>library(NixSEA)
 
 ![](example/enrichment_analysis.png)
 ![](example/LE_heatmap.png)
