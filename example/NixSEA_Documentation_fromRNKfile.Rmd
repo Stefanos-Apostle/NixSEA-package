@@ -1,0 +1,131 @@
+---
+title: "NixSEA_Documentation"
+author: "Stefanos Apostle"
+date: "6/26/2020"
+output: html_document
+---
+
+## Installing NixSEA from github
+```{r}
+library(devtools)
+install_github("Stefanos-Apostle/NixSEA-package")
+
+library(NixSEA)
+```
+
+## Dependencies
+```{r}
+library(msigdbr)
+library(fgsea)
+library(ggplot2)
+library(gplots)
+library(viridis)
+library(biomaRt)
+library(tidyverse)
+library(ggpubr)
+library(biomaRt)
+```
+
+## Reading in Rank file
+```{r}
+v <- read.csv("/secondary/projects/mnp/stefanos/yang/RNAseq/nnat/gig_vs_wt_nopseudo.rnk", sep = "\t")
+RNK_yang <- v[,2]
+names(RNK_yang) <- v[,1]
+```
+
+```{r}
+ensembl = useMart( "ensembl", dataset = "mmusculus_gene_ensembl" )
+genemap <- getBM( attributes = c("ensembl_gene_id", "entrezgene_id", "mgi_symbol"),
+                  filters = "mgi_symbol",
+                  values = names(RNK_yang),
+                  mart = ensembl)
+```
+
+```{r}
+idx <- match( names(RNK_yang), toupper(genemap$mgi_symbol))
+entrez_match <- genemap$entrezgene_id[idx]
+names(RNK_yang) <- entrez_match
+```
+
+## Grabbing all of MsigDB C2 database and formatting gene sets for GSEA of Rank file
+```{r}
+msigdb <- msigdbr(species = "Mus musculus", category = "C2")
+sets <- keyword_geneset(msigdb, "")
+genesets <- geneset_list(sets)
+
+gsea_res <- fgsea(genesets, RNK_yang, 10000)
+gsea_res <- gsea_res[order(gsea_res$padj, decreasing = FALSE),]
+```
+
+## Distribution of tested gene sets
+```{r}
+geneset_dist(gsea_res)
+```
+
+## Top significantly enriched gene sets in each condition
+```{r}
+top_genesets(gsea_res=gsea_res, top_num = 5)
+
+```
+
+## Analysis of top keywords for significantly enriched genesets
+```{r}
+keyword_ann(gsea_res, top_keywords = 10)
+```
+
+## Loading in all C2 gene sets with keywords CANCER and SIGNALING as seen in the top 10 keywords above
+```{r}
+msigdb <- msigdbr(species = "Mus musculus", category = "C2")
+sets <- keyword_geneset(msigdb, c("CANCER","SIGNALING"))
+genesets <- geneset_list(sets)
+```
+
+## Enrichment plots of significant gene sets for CANCER and SIGNALING keywords
+```{r}
+figure1 <- enrichment_analysis(genesets, RNK_yang, sets, figure_header = "Significant Hallmark Geneset Enrichment")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

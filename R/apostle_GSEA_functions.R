@@ -71,8 +71,20 @@ msigdb_sets <- setClass("msigdb_sets", slots = c(gs = "tbl_df",
                                                  gs_names = "character",
                                                  gs_ids = "character"))
 
-keyword_geneset <- function(database, keyword) {
-  gs <- database[grep(keyword, database$gs_name),]
+##Updated function to support multiple keywords
+keyword_geneset <- function (database, keyword)
+{
+  if (length(keyword) > 1) {
+    x <- c()
+    for (i in keyword) {
+      y <- grep(toupper(i), database$gs_name)
+      x <- c(x,y)
+      x <- unique(x)
+    }
+  }else{
+    x <- grep(keyword, database$gs_name)
+  }
+  gs <- database[x, ]
   gs_names <- unique(gs$gs_name)
   gs_ids <- unique(gs$gs_id)
   sets <- msigdb_sets()
@@ -81,6 +93,17 @@ keyword_geneset <- function(database, keyword) {
   sets@gs_ids <- gs_ids
   return(sets)
 }
+
+#keyword_geneset <- function(database, keyword) {
+#  gs <- database[grep(keyword, database$gs_name),]
+#  gs_names <- unique(gs$gs_name)
+#  gs_ids <- unique(gs$gs_id)
+#  sets <- msigdb_sets()
+#  sets@gs <- gs
+#  sets@gs_names <- gs_names
+#  sets@gs_ids <- gs_ids
+#  return(sets)
+#}
 
 geneset_list <- function(set){ #set is S4 class object created from output of function msigdb_keyword()
   i = 1
@@ -226,18 +249,21 @@ geneset_dist <- function(gsea_res){
 
 ## Visualization of top gene sets enriched in each condition
 top_genesets <- function(gsea_res, top_num=5) {
-  top5up <- gsea_res[order(gsea_res$NES, decreasing = TRUE)][1:top_num, c(1,3,5)]
-  top5down <- gsea_res[order(gsea_res$NES, decreasing = FALSE)][1:top_num, c(1,3,5)]
-  top5down <- top5down[order(top5down$NES, decreasing = FALSE),]
 
-  up <- ggtexttable(x=top5up, rows=NULL, theme=ttheme("lRedWhite"))
-  down <- ggtexttable(x=top5down, rows=NULL,theme=ttheme("lBlueWhite"))
+  gsea_up <- gsea_res[which(gsea_res$NES > 0),]
+  gsea_up <- gsea_up[order(gsea_up$NES, decreasing = TRUE),]
+
+  gsea_down <- gsea_res[which(gsea_res$NES < 0),]
+  gsea_down <- gsea_down[order(gsea_down$NES, decreasing = FALSE),]
+
+  up <- ggtexttable(x=gsea_up[1:top_num,c(1,3,5)], rows=NULL, theme=ttheme("lRedWhite"))
+  down <- ggtexttable(x=gsea_down[1:top_num,c(1,3,5)], rows=NULL,theme=ttheme("lBlueWhite"))
 
   ggarrange(up, down, nrow=2)
 }
 
 ## Annotation of keywords in significantly enriched gene sets
-keyword_ann <- function(top_keywords=10) {
+keyword_ann <- function(gsea_res, top_keywords=10) {
   sig_paths <- length(which(gsea_res$padj < 0.05))
   all_words <- unlist(strsplit(gsea_res$pathway[1:sig_paths],"_"))
   un_words <- unique(all_words)
