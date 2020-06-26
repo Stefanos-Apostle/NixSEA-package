@@ -1,0 +1,203 @@
+---
+title: "NixSEA Validation"
+author: "Stefanos Apostle"
+date: "6/16/2020"
+output: html_document
+---
+
+##Comparing NixSEA package to broad insititute GSEA
+
+## Using one of yang's data sets; "/secondary/projects/mnp/stefanos/yang/RNAseq/nnat/gig_vs_wt_nopseudo.rnk"
+
+
+
+```{r}
+library(devtools)
+install_github("Stefanos-Apostle/NixSEA-package")
+library(NixSEA)
+library(msigdbr)
+library(fgsea)
+library(tools)
+library(ggplot2)
+```
+
+## Using Yang's mouse adipocyte data to create Rank file
+```{r}
+setwd("/secondary/projects/mnp/stefanos/yang/RNAseq/nnat")
+
+#BiocManager::install("DESeq2")
+library(DESeq2)
+
+setwd("/secondary/projects/mnp/stefanos/yang/RNAseq/nnat")
+countdata <- read.delim("counts_yang.txt", sep="\t", row.names = 1)
+coldata <- read.delim("sample_sheet.txt", row.names = 1)
+coldata$num. <- factor(coldata$num.)
+coldata$batch <- factor(coldata$batch)
+
+ddsFullCountTable <- DESeqDataSetFromMatrix(countData = countdata, 
+                                            colData = coldata, 
+                                            design = ~ batch + sex + condition)
+ddsFullCountTable$condition <- relevel(ddsFullCountTable$condition, ref = "wt") ##reorders data set so that wt is the first point which is used to calculate log2 change
+dds <- DESeq(ddsFullCountTable)
+
+##DE results wt vs gigantic
+res_gig_wt <- results(dds, contrast = c("condition","gigantic", "wt"))
+sum(res_gig_wt$padj < 0.1, na.rm = TRUE) #total number of significantly expressed genes with adjusted pvalue < 0.1 (allows for 10% false positives)
+Sigres_gig_wt <- res_gig_wt[which(res_gig_wt$padj < 0.1),]
+head(Sigres_gig_wt[order(Sigres_gig_wt$log2FoldChange),]) ##top downregulated genes
+tail(Sigres_gig_wt[order(Sigres_gig_wt$log2FoldChange),]) ##top upregulated genes
+
+plotMA(res_gig_wt, ylim = c(-10,10))
+plotDispEsts(dds, ylim = c(1e-6, 1e1))
+hist(res_gig_wt$padj, col = "grey", main = "Adjusted P-value Distribution")
+
+library(biomaRt)
+res_gig_wt$ensembl <- sapply( strsplit( rownames(res_gig_wt), split="\\+" ), "[", 1 )
+ensembl = useMart( "ensembl", dataset = "mmusculus_gene_ensembl" )
+genemap <- getBM( attributes = c("ensembl_gene_id", "entrezgene_id", "mgi_symbol"),
+                  filters = "ensembl_gene_id",
+                  values = res_gig_wt$ensembl,
+                  mart = ensembl )
+```
+
+```{r}
+idx <- match( res_gig_wt$ensembl, genemap$ensembl_gene_id )
+res_gig_wt$entrez <- genemap$entrezgene[ idx ]
+res_gig_wt$mgi_symbol <- genemap$mgi_symbol[ idx ]#uppercase because GSEA uses human gene names
+
+head(res_gig_wt, 5)
+```
+
+```{r}
+library(devtools)
+install_github("Stefanos-Apostle/NixSEA-package")
+library(NixSEA)
+library(msigdbr)
+library(fgsea)
+library(tools)
+```
+
+## Creating rank file using NixSEA
+```{r}
+RNK_file <- RNK_make(res_gig_wt)
+hist(RNK_file, xlab = "Gene Rank", xlim=c(-50,50))
+```
+
+
+# GSEA using NixSEA (GSEA calculations from fgsea package)
+
+## Top genesets enriched in the control phenotype
+```{r}
+msigdb <- msigdbr(species = "Mus musculus", category = "C2")
+sets <- keyword_geneset(msigdb, "")
+genesets <- geneset_list(sets)
+
+fgseaRes <- fgsea(genesets, RNK_file, nperm = 10000, minSize = 15, maxSize = 500)
+#fgseaRes[order(fgseaRes$padj),]
+head(fgseaRes[order(fgseaRes$NES, decreasing = FALSE),])
+```
+
+## Final counts of geneset enrichment for treatment phenotype (pos)
+```{r}
+HFD_enrich <- fgseaRes[which(fgseaRes$NES > 0),]
+HFD_sig <- HFD_enrich[which(HFD_enrich$padj < 0.05),]
+HFD_vsig <- HFD_enrich[which(HFD_enrich$padj < 0.01),]
+
+length(HFD_enrich$pathway)
+length(HFD_sig$pathway)
+length(HFD_vsig$pathway)
+```
+
+## Final counts of geneset enrichment for control phenotype (neg)
+```{r}
+NC_enrich <- fgseaRes[which(fgseaRes$NES < 0),]
+NC_sig <- NC_enrich[which(NC_enrich$padj < 0.05),]
+NC_vsig <- NC_enrich[which(NC_enrich$padj < 0.01),]
+
+length(NC_enrich$pathway)
+length(NC_sig$pathway)
+length(NC_vsig$pathway)
+```
+
+## fgsea enrichment plot of top gene set enrichment in negative phenotype
+```{r}
+plotEnrichment(genesets$BURTON_ADIPOGENESIS_6, RNK_file)
+```
+
+
+## NixSEA enrichment plot of top gene set erichment in negative phenotype
+```{r}
+sets <- NixSEA::keyword_geneset(msigdb, "BURTON_ADIPOGENESIS_6")
+genesets <- NixSEA::geneset_list(sets)
+
+figure1 <- enrichment_analysis(genesets, RNK_file, sets, figure_header = "Testing enrichment in down phenotype")
+```
+
+
+
+##Writing Rank file to use in GSEA app
+```{r}
+RNK_table <- data.frame("Genename" = names(RNK_file), "stat" = RNK_file)
+
+write.table(RNK_table, "/secondary/projects/mnp/stefanos/tools/R-packages/NixSEA/example/Validation_GvWT.rnk",quote=F, sep="\t",eol = "\r", row.names = F)
+```
+
+## Image of Broad Institute App Results with premade Rank file
+```{r}
+knitr::include_graphics("/secondary/projects/mnp/stefanos/tools/R-packages/NixSEA/example/Index_GvWT_GSEA.png")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

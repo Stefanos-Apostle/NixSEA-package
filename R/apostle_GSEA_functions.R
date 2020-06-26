@@ -211,10 +211,79 @@ LE_heatmap <- function (geneset_list, fgsea_RNK, deseq_res, ColumnColors = FALSE
   figure2
 }
 
+## Gene set distribution plot function
+geneset_dist <- function(gsea_res){
+  col_fun <- function(x){if (x < 0.05){"red"}else{"black"} }
+  col <- sapply(gsea_res$padj, col_fun)
+
+  ggplot(data=gsea_res, aes(x=NES, y=padj)) +
+    geom_point( color=col) +
+    xlab("Normalized Enrichment Score") +
+    ylab("Adjusted P value") +
+    ggtitle("Gene Set Enrichment Distribution") +
+    theme_classic()
+}
+
+## Visualization of top gene sets enriched in each condition
+top_genesets <- function(gsea_res, top_num=5) {
+  top5up <- gsea_res[order(gsea_res$NES, decreasing = TRUE)][1:top_num, c(1,3,5)]
+  top5down <- gsea_res[order(gsea_res$NES, decreasing = FALSE)][1:top_num, c(1,3,5)]
+  top5down <- top5down[order(top5down$NES, decreasing = FALSE),]
+
+  up <- ggtexttable(x=top5up, rows=NULL, theme=ttheme("lRedWhite"))
+  down <- ggtexttable(x=top5down, rows=NULL,theme=ttheme("lBlueWhite"))
+
+  ggarrange(up, down, nrow=2)
+}
+
+## Annotation of keywords in significantly enriched gene sets
+keyword_ann <- function(top_keywords=10) {
+  sig_paths <- length(which(gsea_res$padj < 0.05))
+  all_words <- unlist(strsplit(gsea_res$pathway[1:sig_paths],"_"))
+  un_words <- unique(all_words)
+
+  common_words <- c("THE","HALLMARK","AND","OR","UP","DN", "GENES", "REACTOME","KEGG",
+                    "GO", "PATHWAY","VIA","WITH","CELL", "BIOCARTA")
+
+  n_rep <- c()
+  short <- c()
+  for (i in un_words){
+    if (nchar(i) > 2){
+      l <- length(which(all_words %in% i))
+      n_rep <- c(n_rep, l)
+    }else{
+      s <- match(i, un_words)
+      short <- c(short, s)
+    }
+  }
+  ann_word <- data.frame("Keyword"=un_words[-short], "Number"=n_rep)
+  ann_word <- ann_word[order(ann_word$Number, decreasing = TRUE),]
+  cm <- which(ann_word$Keyword %in% common_words)
+  ann_word <- ann_word[-cm,]
+
+  num_gs <- top_keywords
+
+  avg_p <- c()
+  le_k <- c()
+  for (i in ann_word$Keyword[1:num_gs]){
+    paths <- grep(i, gsea_res$pathway[gsea_res$padj < 0.05])
+    m <- mean(gsea_res$padj[paths])
+    avg_p <- c(avg_p, m)
+
+    k <- length(unique(gsea_res$leadingEdge[paths]))
+    le_k <- c(le_k, k)
+  }
 
 
-
-
+  ggplot(data=ann_word[1:num_gs,]) +
+    geom_point(aes(x = (Number/sig_paths)*100, y=fct_rev(factor(Keyword, level=Keyword)), color = avg_p, size=le_k)) +
+    scale_color_viridis() +
+    ylab("Top Keywords") +
+    xlab("Percent of Significant Gene Sets Including Keyword") +
+    labs(size="Unique LE Genes", color="Average padj") +
+    ggtitle("Significant Gene Set Keyword Annotation") +
+    theme_classic()
+}
 
 
 
