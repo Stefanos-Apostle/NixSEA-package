@@ -61,7 +61,7 @@ RNK_make <- function (deseq2_res, countdata, coldata,  conditions, stat="Signal2
     rank_stat <- (condition1_counts$mean - condition2_counts$mean)/(condition1_counts$sd + condition2_counts$sd) ## (mu(a)-mu(b))/(sd(a)+sd(b))
 
   }else if (stat == "Pl2FC") {
-    rank_stat <-
+    rank_stat <- -log10(deseq2_res$padj)/sign(deseq2_res$log2FoldChange)
   }else{
     stop("Rank stat must be 'Signal2Noise' or 'Pl2FC'")
   }
