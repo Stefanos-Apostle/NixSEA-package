@@ -245,8 +245,14 @@ LE_heatmap <- function (geneset_list, fgsea_RNK, deseq_res, expression_matrix, C
               margins = c(col_margin, row_margin))
     legend(x = "left", legend = as.character(levels(dds$treatment)),
            fill = viridis(length(levels(dds$treatment))))
-  }
-  else {
+  }else if (class(ColumnColors) == "character"){
+    heatmap.2(x = hm, scale = "row", dendrogram = "column", ColSideColors = ColumnColors,
+              trace = "none", col = colorRampPalette(c("darkblue",
+                                                       "lightblue", "white", "orange", "darkred"))(n = 99),
+              labCol = colnames(expression_matrix), ylab = "Gene", xlab = "Biological Sample",
+              main = heatmap_header)
+
+  }else {
     heatmap.2(x = hm, scale = "row", dendrogram = "column",
               trace = "none", col = colorRampPalette(c("darkblue",
                                                        "lightblue", "white", "orange", "darkred"))(n = 99),
