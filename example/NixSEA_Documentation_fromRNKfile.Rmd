@@ -70,17 +70,17 @@ top_genesets(gsea_res=gsea_res, top_num = 5)
 
 ## Analysis of top keywords for significantly enriched genesets
 ```{r}
-keyword_ann(gsea_res, top_keywords = 10)
+keyword_ann(gsea_res, top_keywords = 30)
 ```
 
 ## Loading in all C2 gene sets with keywords CANCER and SIGNALING as seen in the top 10 keywords above
 ```{r}
 msigdb <- msigdbr(species = "Mus musculus", category = "C2")
-sets <- keyword_geneset(msigdb, c("CANCER","SIGNALING"))
+sets <- keyword_geneset(msigdb, "LUNG")
 genesets <- geneset_list(sets)
 ```
 
-## Enrichment plots of significant gene sets for CANCER and SIGNALING keywords
+## Enrichment plots of significant gene sets for LUNG keyword
 ```{r}
 figure1 <- enrichment_analysis(genesets, RNK_yang, sets, figure_header = "Significant Hallmark Geneset Enrichment")
 ```

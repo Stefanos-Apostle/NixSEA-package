@@ -45,22 +45,44 @@ entrez_correct <- function(RNK_file){
 }
 
 
-RNK_make <- function(deseq2_res) {
-  rank_stat <- -log10(deseq2_res$padj)/sign(deseq2_res$log2FoldChange)
+RNK_make <- function (deseq2_res, countdata, coldata,  conditions, stat="Signal2Noise") {
+  if (stat == "Signal2Noise"){
+    cond1 <- coldata$name[which(coldata$condition == conditions[1])]
+    cond2 <- coldata$name[which(coldata$condition == conditions[2])]
+    condition1_counts <- countdata[,which(colnames(placenta_counts) %in% cond1)]
+    condition2_counts <- countdata[,which(colnames(placenta_counts) %in% cond2)]
+
+    condition1_counts$sd <- rowSds(condition1_counts)
+    condition2_counts$sd <- rowSds(condition2_counts)
+
+    condition1_counts$mean <- rowMeans(condition1_counts[,1:length(cond1)])
+    condition2_counts$mean <- rowMeans(condition2_counts[,1:length(cond2)])
+
+    rank_stat <- (condition1_counts$mean - condition2_counts$mean)/(condition1_counts$sd + condition2_counts$sd) ## (mu(a)-mu(b))/(sd(a)+sd(b))
+
+  }else if (stat == "Pl2FC") {
+    rank_stat <-
+  }else{
+    stop("Rank stat must be 'Signal2Noise' or 'Pl2FC'")
+  }
+
   RNK_file <- data.frame(entrez_id = deseq2_res$entrez, rank = rank_stat)
   length(RNK_file$entrez_id)
-
-  if ("hgnc_symbol" %in% colnames(deseq2_res)) {symbol <- deseq2_res$hgnc_symbol}
-  if ("mgi_symbol" %in% colnames(deseq2_res)) {symbol <- deseq2_res$mgi_symbol}
-
+  if ("hgnc_symbol" %in% colnames(deseq2_res)) {
+    symbol <- deseq2_res$hgnc_symbol
+  }
+  if ("mgi_symbol" %in% colnames(deseq2_res)) {
+    symbol <- deseq2_res$mgi_symbol
+  }
   pseudo <- grep("Gm", symbol)
   entrez_na <- which(is.na(RNK_file$entrez_id) == TRUE)
   rank_na <- which(is.na(RNK_file$rank) == TRUE)
   del <- c(pseudo, entrez_na, rank_na)
   del <- unique(del)
-  RNK_file <- RNK_file[-del,]
-  RNK_file <- RNK_file[order(abs(RNK_file$rank), decreasing= TRUE),]
-  RNK_file <- entrez_correct(RNK_file) ##averages duplicated entrez_genes
+  RNK_file <- RNK_file[-del, ]
+  RNK_file <- RNK_file[order(abs(RNK_file$rank), decreasing = TRUE),
+                       ]
+  RNK_file <- entrez_correct(RNK_file)
   fgsea_RNK <- RNK_file$rank
   names(fgsea_RNK) <- RNK_file$entrez_id
   return(fgsea_RNK)
@@ -189,49 +211,48 @@ enrichment_analysis <- function(geneset_list, fgsea_RNK, msigdb_sets, figure_hea
 
 
 
-LE_heatmap <- function (geneset_list, fgsea_RNK, deseq_res, ColumnColors = FALSE, heatmap_header = NULL,
-                        col_margin = 10, row_margin = 10)
+LE_heatmap <- function (geneset_list, fgsea_RNK, deseq_res, expression_matrix, ColumnColors = FALSE,
+                        heatmap_header = NULL, col_margin = 10, row_margin = 10)
 {
   res <- fgsea(geneset_list, fgsea_RNK, nperm = 10000)
   sig_genesets <- which(res$padj < 0.05)
-
-  if ("hgnc_symbol" %in% colnames(deseq_res)) {symbol <- deseq_res$hgnc_symbol}
-  if ("mgi_symbol" %in% colnames(deseq_res)) {symbol <- deseq_res$mgi_symbol}
-
-  leading_edge <- symbol[which(deseq_res$entrez %in%
-                                 unique(unlist(res[sig_genesets, 1:length(res)]$leadingEdge)))]
-  le_genes <- which(rownames(rld_df) %in% leading_edge)
-  df <- rld_df[le_genes, ]
+  if ("hgnc_symbol" %in% colnames(deseq_res)) {
+    symbol <- deseq_res$hgnc_symbol
+  }
+  if ("mgi_symbol" %in% colnames(deseq_res)) {
+    symbol <- deseq_res$mgi_symbol
+  }
+  leading_edge <- symbol[which(deseq_res$entrez %in% unique(unlist(res[sig_genesets,
+                                                                       1:length(res)]$leadingEdge)))]
+  le_genes <- which(rownames(expression_matrix) %in% leading_edge)
+  df <- expression_matrix[le_genes, ]
   hm <- as.matrix(df)
   plot.new()
-
   if (ColumnColors == TRUE) {
     i = 1
     colcolors <- as.character(dds$treatment)
     while (i <= length(levels(dds$treatment))) {
-      colcolors <- replace(colcolors, grep(levels(dds$treatment)[i],colcolors), viridis(length(levels(dds$treatment)))[i])
+      colcolors <- replace(colcolors, grep(levels(dds$treatment)[i],
+                                           colcolors), viridis(length(levels(dds$treatment)))[i])
       i = i + 1
     }
-
     print(colcolors)
-
-    figure2 <- heatmap.2(x = hm, scale = "row", dendrogram = "column",
-                         trace = "none", col = colorRampPalette(c("darkblue",
-                                                                  "lightblue", "white", "orange", "darkred"))(n = 99),
-                         labCol = colnames(rld_df), ylab = "Gene", xlab = "Biological Sample",
-                         main = heatmap_header, ColSideColors = colcolors,
-                         margins = c(col_margin, row_margin))
-    legend(x = "left", legend = as.character(levels(dds$treatment)), fill = viridis(length(levels(dds$treatment))))
+    heatmap.2(x = hm, scale = "row", dendrogram = "column",
+              trace = "none", col = colorRampPalette(c("darkblue",
+                                                       "lightblue", "white", "orange", "darkred"))(n = 99),
+              labCol = colnames(expression_matrix), ylab = "Gene", xlab = "Biological Sample",
+              main = heatmap_header, ColSideColors = colcolors,
+              margins = c(col_margin, row_margin))
+    legend(x = "left", legend = as.character(levels(dds$treatment)),
+           fill = viridis(length(levels(dds$treatment))))
   }
   else {
-    figure2 <- heatmap.2(x = hm, scale = "row", dendrogram = "column",
-                         trace = "none", col = colorRampPalette(c("darkblue",
-                                                                  "lightblue", "white", "orange", "darkred"))(n = 99),
-                         labCol = colnames(rld_df), ylab = "Gene", xlab = "Biological Sample",
-                         main = heatmap_header)
+    heatmap.2(x = hm, scale = "row", dendrogram = "column",
+              trace = "none", col = colorRampPalette(c("darkblue",
+                                                       "lightblue", "white", "orange", "darkred"))(n = 99),
+              labCol = colnames(expression_matrix), ylab = "Gene", xlab = "Biological Sample",
+              main = heatmap_header)
   }
-
-  figure2
 }
 
 ## Gene set distribution plot function
@@ -248,67 +269,98 @@ geneset_dist <- function(gsea_res){
 }
 
 ## Visualization of top gene sets enriched in each condition
-top_genesets <- function(gsea_res, top_num=5) {
-
-  gsea_up <- gsea_res[which(gsea_res$NES > 0),]
-  gsea_up <- gsea_up[order(gsea_up$NES, decreasing = TRUE),]
-
-  gsea_down <- gsea_res[which(gsea_res$NES < 0),]
+top_genesets <- function (gsea_res, top_num = 5, conditions = c()) {
+  gsea_up <- gsea_res[which(gsea_res$NES > 0), ]
+  gsea_up <- gsea_up[order(gsea_up$NES, decreasing = TRUE),
+                     ]
+  gsea_down <- gsea_res[which(gsea_res$NES < 0), ]
   gsea_down <- gsea_down[order(gsea_down$NES, decreasing = FALSE),]
 
-  up <- ggtexttable(x=gsea_up[1:top_num,c(1,3,5)], rows=NULL, theme=ttheme("lRedWhite"))
-  down <- ggtexttable(x=gsea_down[1:top_num,c(1,3,5)], rows=NULL,theme=ttheme("lBlueWhite"))
+  if (length(conditions) == 0) {
+    up_cols <- c("Enriched in Up Condition", "P-adj","NES")
+    down_cols <- c("Enriched in Down Condition", "P-adj","NES")
+  }else if (length(conditions) == 2) {
+    up_cols <- c(paste("Enriched in", conditions[1], sep = " "), "P-adj","NES")
+    down_cols <- c(paste("Enriched in", conditions[2], sep=" "), "P-adj","NES")
+  }else{
+    stop("conditions must be empty or a list of length two with your GSEA condition names.")
+  }
 
-  ggarrange(up, down, nrow=2)
+  up <- ggtexttable(x = gsea_up[1:top_num, c(1, 3, 5)], rows = NULL,
+                    theme = ttheme("lRedWhite"), cols = up_cols)
+  down <- ggtexttable(x = gsea_down[1:top_num, c(1, 3, 5)],
+                      rows = NULL, theme = ttheme("lBlueWhite"), cols = down_cols)
+  ggarrange(up, down, nrow = 2)
 }
 
 ## Annotation of keywords in significantly enriched gene sets
-keyword_ann <- function(gsea_res, top_keywords=10) {
+keyword_ann <- function (gsea_res, top_keywords = 10) {
   sig_paths <- length(which(gsea_res$padj < 0.05))
-  all_words <- unlist(strsplit(gsea_res$pathway[1:sig_paths],"_"))
+  all_words <- unlist(strsplit(gsea_res$pathway[order(gsea_res$padj, decreasing = FALSE)][1:sig_paths],
+                               "_"))
   un_words <- unique(all_words)
-
-  common_words <- c("THE","HALLMARK","AND","OR","UP","DN", "GENES", "REACTOME","KEGG",
-                    "GO", "PATHWAY","VIA","WITH","CELL", "BIOCARTA")
-
+  common_words <- c("THE", "HALLMARK", "AND", "OR", "UP", "DN",
+                    "GENES", "REACTOME", "KEGG", "GO", "PATHWAY", "VIA",
+                    "WITH", "CELL", "BIOCARTA")
   n_rep <- c()
   short <- c()
-  for (i in un_words){
-    if (nchar(i) > 2){
+  for (i in un_words) {
+    if (nchar(i) > 2) {
       l <- length(which(all_words %in% i))
       n_rep <- c(n_rep, l)
-    }else{
+    }
+    else {
       s <- match(i, un_words)
       short <- c(short, s)
     }
   }
-  ann_word <- data.frame("Keyword"=un_words[-short], "Number"=n_rep)
-  ann_word <- ann_word[order(ann_word$Number, decreasing = TRUE),]
+  ann_word <- data.frame(Keyword = un_words[-short], Number = n_rep)
+  ann_word <- ann_word[order(ann_word$Number, decreasing = TRUE),
+                       ]
   cm <- which(ann_word$Keyword %in% common_words)
-  ann_word <- ann_word[-cm,]
-
+  ann_word <- ann_word[-cm, ]
   num_gs <- top_keywords
-
   avg_p <- c()
   le_k <- c()
-  for (i in ann_word$Keyword[1:num_gs]){
+  for (i in ann_word$Keyword[1:num_gs]) {
     paths <- grep(i, gsea_res$pathway[gsea_res$padj < 0.05])
-    m <- mean(gsea_res$padj[paths])
+    m <- mean(gsea_res$padj[gsea_res$padj < 0.05][paths])
     avg_p <- c(avg_p, m)
-
     k <- length(unique(gsea_res$leadingEdge[paths]))
     le_k <- c(le_k, k)
   }
-
-
-  ggplot(data=ann_word[1:num_gs,]) +
-    geom_point(aes(x = (Number/sig_paths)*100, y=fct_rev(factor(Keyword, level=Keyword)), color = avg_p, size=le_k)) +
-    scale_color_viridis() +
-    ylab("Top Keywords") +
+  ggplot(data = ann_word[1:num_gs, ]) + geom_point(aes(x = (Number/sig_paths) *
+                                                         100, y = fct_rev(factor(Keyword, level = Keyword)), color = avg_p,
+                                                       size = le_k)) + scale_color_viridis() + ylab("Top Keywords") +
     xlab("Percent of Significant Gene Sets Including Keyword") +
-    labs(size="Unique LE Genes", color="Average padj") +
+    labs(size = "Unique LE Genes", color = "Average padj") +
     ggtitle("Significant Gene Set Keyword Annotation") +
     theme_classic()
+}
+
+##function to average mgi symbol duplicates
+mgi_dup_fix <- function(rld_df, num_samples){
+  un_syms <- unique(rld_df$mgi_symbol)[-which(is.na(rld_df$mgi_symbol) == TRUE)]
+  revised_df <- data.frame()
+  for (i in un_syms){
+    pos <- which(rld_df$mgi_symbol %in% i)
+    x <- data.frame()
+    for (j in pos){
+      if (nrow(x) == 0) {
+        x <- rbind(x,rld_df[j, 1:num_samples])
+      }else{
+        x <- x + rld_df[j, 1:num_samples]
+      }
+    }
+    avg_x <- x/length(pos)
+    if (nrow(revised_df) == 0){
+      revised_df <- as.data.frame(avg_x)
+    }else{
+      revised_df <- rbind(revised_df, avg_x)
+    }
+  }
+  rownames(revised_df) <- un_syms
+  return(revised_df)
 }
 
 
