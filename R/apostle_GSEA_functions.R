@@ -137,60 +137,47 @@ geneset_list <- function(set){ #set is S4 class object created from output of fu
   return(f)
 }
 
-enrichment_figures <- function(pathway, stats, sig_gs_names, title,
-                               gseaParam=1,
-                               ticksSize=0.2) {
+enrichment_figures<- function (pathway, stats, sig_gs_names, title, gseaParam = 1,
+                                    ticksSize = 0.2)
+{
   rnk <- rank(-stats)
   ord <- order(rnk)
   statsAdj <- stats[ord]
-  statsAdj <- sign(statsAdj) * (abs(statsAdj) ^ gseaParam)
-  statsAdj <- statsAdj / max(abs(statsAdj))
-
+  statsAdj <- sign(statsAdj) * (abs(statsAdj)^gseaParam)
+  statsAdj <- statsAdj/max(abs(statsAdj))
   fgsea_df = data.frame()
   i = 1
   while (i <= length(pathway)) {
-    pathway_reord <- unname(as.vector(na.omit(match(pathway[[i]], names(statsAdj)))))
+    pathway_reord <- unname(as.vector(na.omit(match(pathway[[i]],
+                                                    names(statsAdj)))))
     pathway_reord <- sort(pathway_reord)
-
     gseaRes <- calcGseaStat(statsAdj, selectedStats = pathway_reord,
                             returnAllExtremes = TRUE)
-
     bottoms <- gseaRes$bottoms
     tops <- gseaRes$tops
-
     n <- length(statsAdj)
     xs <- as.vector(rbind(pathway_reord - 1, pathway_reord))
     ys <- as.vector(rbind(bottoms, tops))
-    toPlot <- data.frame(x=c(0, xs, n + 1), y=c(0, ys, 0), z = sig_gs_names[i])
+    toPlot <- data.frame(x = c(0, xs, n + 1), y = c(0, ys,
+                                                    0), z = sig_gs_names[i])
     fgsea_df <- rbind(fgsea_df, toPlot)
-    diff <- (max(tops) - min(bottoms)) / 8
-
+    diff <- (max(tops) - min(bottoms))/8
     i = i + 1
   }
+  x = y = NULL
 
-  x=y=NULL
-  g <- ggplot(fgsea_df, aes(x=x, y=y, group = z, color = z)) +
-    geom_point( size=0.1) +
-    geom_hline(yintercept=0, colour="black") +
-    geom_line() + theme_bw() +
-    scale_x_continuous(expand = c(0, 0)) +
-    scale_color_viridis_d(name = "Gene Set") +
-    theme_classic() +
-    xlab(NULL) +
-    ylab("Enrichment Score") +
-    ggtitle(title)
-
-
-  h <- ggplot(data = fgsea_df, aes(x = x, y = z, color = z, group = z)) +
-    geom_point(pch = "|", cex = 3) +
-    ylab("") +
-    xlab("Gene Rank") +
-    scale_x_continuous(expand = c(0, 0)) +
-    scale_color_viridis_d() +
-    theme_classic() +
-    theme(axis.text.y = element_blank()) +
+  g <- ggplot(fgsea_df, aes(x = x, y = y, group = z, color = z)) +
+    geom_point(size = 0.1) + geom_hline(yintercept = 0, colour = "black") +
+    geom_line() + theme_bw() + scale_x_continuous(expand = c(0,0)) +
+    scale_color_viridis_d(name = "Gene Set") + theme_classic() +
+    xlab(NULL) + ylab("Enrichment Score") + ggtitle(title) +
     theme(legend.position = "none")
 
+  h <- ggplot(data = fgsea_df, aes(x = x, y = z, color = z,
+                                   group = z)) + geom_point(pch = "|", cex = 3) + ylab("") +
+    xlab("Gene Rank") + scale_x_continuous(expand = c(0,0)) +
+    scale_color_viridis_d() + theme_classic() + theme(axis.text.y = element_blank()) +
+    theme(legend.position = "bottom", legend.text = element_text(size = 5), legend.title = element_blank())
   egg::ggarrange(g, h, heights = c(0.75, 0.25))
 }
 
