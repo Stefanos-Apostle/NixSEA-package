@@ -356,6 +356,59 @@ mgi_dup_fix <- function(rld_df, num_samples){
   return(revised_df)
 }
 
+## Function to load in tab delim gene sets from .gmt formatted file
+load_gmt <- function(tab_delim_gmt) {
+  set <- read_delim(tab_delim_gmt, delim = "\n", col_names = FALSE)
+  gmt_geneset_list = list()
+  unlisted <- c()
+  i = 1
+  while (i <= length(set[[1]])){
+    x = set[[1]][i]
+    y = strsplit(x, "\t")
+    l = length(y[[1]])
+    sets = y[[1]][3:l]
+    unlisted <- c(unlisted, sets)
+    name = y[[1]][1]
+    gmt_geneset_list[[name]] = sets
+    i = i + 1
+  }
+  return(gmt_geneset_list)
+}
+
+
+## function to convert mgi_symbol gene sets to entrez for GSEA
+make_entrez <- function(spec_sets, species = "Human") {
+  if ((species %in% c("Human","Mouse")) == FALSE){
+    stop("Species must be 'Human' or 'Mouse'.")
+  }
+  spec_dataset <- if (species == "Human"){"hsapies_gene_ensembl"}else if (species == "Mouse") {"mmusculus_gene_ensembl"}
+  symbol <- if (species == "Human"){"hgnc_symbol"}else if (species == "Mouse") {"mgi_symbol"}
+
+
+  ensembl = useMart( "ensembl", dataset = spec_dataset )
+  genemap <- getBM( attributes = c("ensembl_gene_id", "entrezgene_id", "mgi_symbol"),
+                    filters = symbol,
+                    values = unique(unlist(spec_sets)),
+                    mart = ensembl )
+  entrez_list <- spec_sets
+  j = 1
+  for (i in spec_sets) {
+    idx <- match(i, genemap[,which(colnames(genemap) == symbol)])
+    replace <- genemap$entrezgene_id[idx]
+    replace <- replace[-which(is.na(replace == TRUE))]
+    entrez_list[[j]] <- replace
+    j = j + 1
+  }
+  return(entrez_list)
+}
+
+
+## function to make sets value from gene sets not in msigdb
+cust_sets <- function(entrez_list) {
+  sets <- msigdb_sets()
+  sets@gs_names <- names(entrez_list)
+  return(sets)
+}
 
 
 
