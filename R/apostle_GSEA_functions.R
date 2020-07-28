@@ -262,23 +262,28 @@ geneset_dist <- function(gsea_res){
 }
 
 ## Visualization of top gene sets enriched in each condition
-top_genesets <- function (gsea_res, top_num = 5, conditions = c()) {
+top_genesets <- function (gsea_res, top_num = 5, conditions = c())
+{
   gsea_up <- gsea_res[which(gsea_res$NES > 0), ]
-  gsea_up <- gsea_up[order(gsea_up$NES, decreasing = TRUE),
+  gsea_up <- gsea_up[order(gsea_up$padj, decreasing = FALSE),
                      ]
   gsea_down <- gsea_res[which(gsea_res$NES < 0), ]
-  gsea_down <- gsea_down[order(gsea_down$NES, decreasing = FALSE),]
-
+  gsea_down <- gsea_down[order(gsea_down$padj, decreasing = FALSE),
+                         ]
   if (length(conditions) == 0) {
-    up_cols <- c("Enriched in Up Condition", "P-adj","NES")
-    down_cols <- c("Enriched in Down Condition", "P-adj","NES")
-  }else if (length(conditions) == 2) {
-    up_cols <- c(paste("Enriched in", conditions[1], sep = " "), "P-adj","NES")
-    down_cols <- c(paste("Enriched in", conditions[2], sep=" "), "P-adj","NES")
-  }else{
+    up_cols <- c("Enriched in Up Condition", "P-adj", "NES")
+    down_cols <- c("Enriched in Down Condition", "P-adj",
+                   "NES")
+  }
+  else if (length(conditions) == 2) {
+    up_cols <- c(paste("Enriched in", conditions[1], sep = " "),
+                 "P-adj", "NES")
+    down_cols <- c(paste("Enriched in", conditions[2], sep = " "),
+                   "P-adj", "NES")
+  }
+  else {
     stop("conditions must be empty or a list of length two with your GSEA condition names.")
   }
-
   up <- ggtexttable(x = gsea_up[1:top_num, c(1, 3, 5)], rows = NULL,
                     theme = ttheme("lRedWhite"), cols = up_cols)
   down <- ggtexttable(x = gsea_down[1:top_num, c(1, 3, 5)],
@@ -410,7 +415,37 @@ cust_sets <- function(entrez_list) {
   return(sets)
 }
 
+## function to write a NixSEA rank file to a .rnk file for preranked GSEA in broad institute app
+write_RNK <- function(file, RNK_file, species = "Human") {
+  if ((species %in% c("Human", "Mouse")) == FALSE) {
+    stop("Species must be 'Human' or 'Mouse'.")
+  }
+  spec_dataset <- if (species == "Human") {
+    "hsapiens_gene_ensembl"
+  }
+  else if (species == "Mouse") {
+    "mmusculus_gene_ensembl"
+  }
+  symbol <- if (species == "Human") {
+    "hgnc_symbol"
+  }
+  else if (species == "Mouse") {
+    "mgi_symbol"
+  }
 
+  ensembl = useMart( "ensembl", dataset = spec_dataset )
+  genemap <- getBM( attributes = c("ensembl_gene_id", "entrezgene_id", symbol),
+                    filters = "entrezgene_id",
+                    values = names(RNK_file),
+                    mart = ensembl )
+
+  idx <- match(names(RNK_file), genemap$entrezgene_id)
+  conv_syms <- genemap[, which(colnames(genemap) == symbol)][idx]
+
+  wRNK <- data.frame(gene = conv_syms, stat = RNK_file)
+  print(wRNK)
+  write.table(wRNK, file, quote = F, sep = "\t", eol = "\r", row.names = F)
+}
 
 
 
