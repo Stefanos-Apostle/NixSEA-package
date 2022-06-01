@@ -204,7 +204,7 @@ enrichment_analysis <- function (geneset_list, fgsea_RNK, msigdb_sets, figure_he
   if (length(sig_genesets) > 0) {
     sig_gs_names <- msigdb_sets@gs_names[sig_genesets]
     geneset_sig <- geneset_list[sig_genesets]
-    figure1 <- enrichment_figures_dev(geneset_sig, fgsea_RNK,
+    figure1 <- enrichment_figures(geneset_sig, fgsea_RNK,
                                       sig_gs_names, title = figure_header, color_values = color_values, abs = abs)
     figure1
   }
