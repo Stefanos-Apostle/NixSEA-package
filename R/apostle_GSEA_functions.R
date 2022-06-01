@@ -137,8 +137,8 @@ geneset_list <- function(set){ #set is S4 class object created from output of fu
   return(f)
 }
 
-enrichment_figures<- function (pathway, stats, sig_gs_names, title, gseaParam = 1,
-                                    ticksSize = 0.2)
+enrichment_figures <- function (pathway, stats, sig_gs_names, title, gseaParam = 1,
+                                    ticksSize = 0.2, color_values = c(""), abs = F)
 {
   rnk <- rank(-stats)
   ord <- order(rnk)
@@ -164,31 +164,48 @@ enrichment_figures<- function (pathway, stats, sig_gs_names, title, gseaParam = 
     diff <- (max(tops) - min(bottoms))/8
     i = i + 1
   }
-  x = y = NULL
 
+
+  if (abs == T) {
+    fgsea_df$y <- abs(fgsea_df$y)
+    ylab <- "abs(NES)"
+  }else{
+    ylab <- "NES"
+  }
+
+  x = y = NULL
   g <- ggplot(fgsea_df, aes(x = x, y = y, group = z, color = z)) +
     geom_point(size = 0.1) + geom_hline(yintercept = 0, colour = "black") +
-    geom_line() + theme_bw() + scale_x_continuous(expand = c(0,0)) +
-    scale_color_viridis_d(name = "Gene Set") + theme_classic() +
-    xlab(NULL) + ylab("Enrichment Score") + ggtitle(title) +
+    geom_line() + theme_bw() + scale_x_continuous(expand = c(0,
+                                                             0)) +
+    #scale_color_viridis_d(name = "Gene Set") +
+    scale_color_manual(values = color_values) +
+    theme_classic() +
+    xlab(NULL) + ylab(ylab) + ggtitle(title) +
     theme(legend.position = "none")
-
   h <- ggplot(data = fgsea_df, aes(x = x, y = z, color = z,
                                    group = z)) + geom_point(pch = "|", cex = 3) + ylab("") +
-    xlab("Gene Rank") + scale_x_continuous(expand = c(0,0)) +
-    scale_color_viridis_d() + theme_classic() + theme(axis.text.y = element_blank()) +
-    theme(legend.position = "bottom", legend.text = element_text(size = 5), legend.title = element_blank())
+    xlab("Gene Rank") + scale_x_continuous(expand = c(0,
+                                                      0)) +
+    #scale_color_viridis_d() +
+    scale_color_manual(values = color_values) +
+    theme_classic() + theme(axis.text.y = element_blank()) +
+    theme(legend.position = "bottom", legend.text = element_text(size = 5),
+          legend.title = element_blank())
   egg::ggarrange(g, h, heights = c(0.75, 0.25))
 }
 
 
-enrichment_analysis <- function(geneset_list, fgsea_RNK, msigdb_sets, figure_header) {
+
+enrichment_analysis <- function (geneset_list, fgsea_RNK, msigdb_sets, figure_header, color_values = c(""), abs = F, pval = 0.05)
+{
   res <- fgsea(geneset_list, fgsea_RNK, nperm = 10000)
-  sig_genesets <- which(res$padj < 0.05)
+  sig_genesets <- which(res$padj < pval)
   if (length(sig_genesets) > 0) {
     sig_gs_names <- msigdb_sets@gs_names[sig_genesets]
     geneset_sig <- geneset_list[sig_genesets]
-    figure1 <- enrichment_figures(geneset_sig, fgsea_RNK, sig_gs_names, title = figure_header)
+    figure1 <- enrichment_figures_dev(geneset_sig, fgsea_RNK,
+                                      sig_gs_names, title = figure_header, color_values = color_values, abs = abs)
     figure1
   }
   else {
